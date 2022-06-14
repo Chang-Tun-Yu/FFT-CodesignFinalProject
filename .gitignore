@@ -13,3 +13,5 @@ IAR/8051-231C/
 *.hex
 *.exe
 *.sln
+*.prj
+*.dtp
