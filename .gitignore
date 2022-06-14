@@ -1,0 +1,14 @@
+Debug/
+Final/
+hex2byte/
+IAR/8051-231C/
+
+*.dsp
+*.dsw
+*.ncb
+*.opt
+*.plg
+*.t
+*.hex
+*.exe
+*.sln
