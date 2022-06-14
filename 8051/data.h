@@ -29,7 +29,7 @@ SC_MODULE(DATA_asic)
             if(ctrl.read() == 2){
 			    data.write(xram_data);
                 i++;
-                //printf("%d th read: %hu\n", i, xram_data);
+                // printf("%d th read: %hu\n", i, xram_data);
 			}
 		}
 		    

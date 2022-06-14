@@ -21,14 +21,17 @@ int main(void){
 	            P3 = 2;
 	            P0 = P3;
 	            i += 1;
-	            P3 = 0;
+	            // P3 = 0;
 	        }
 	        else{//forward to FFT
 	            P3 = 1;
 	            i += 1;
 	            DPL += 1;
-	            P3 = 0;
+	            // P3 = 0;
 	        }
 	    }
+		else {
+			P3 = 0;
+		}
 	}
 }

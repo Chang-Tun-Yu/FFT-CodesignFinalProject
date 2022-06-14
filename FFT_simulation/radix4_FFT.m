@@ -2,7 +2,11 @@
 a = 64;   % FFT Length
 t = 0:1/a:(a-1)/a;
 % signal
-s = cos(2*pi*6*t) + cos(2*pi*12*t)*j;
+% s = cos(2*pi*6*t) + cos(2*pi*12*t)*j;
+s1 = 0:31;
+s2 = 48:63;
+s3 = 96:111;
+s = [s1,s2,s3];
 subplot(211)
 plot(t, real(s))
 xlabel('time (sec)'); ylabel('Amplitude'); title('Test Signal - Real Component');
@@ -19,6 +23,11 @@ S = bitrevorder(S);
 
 % Calculate FFT using MATLAB function
 Y = fft(s);
+fileID = fopen('golden.txt','w');
+for i = 1:64
+    fprintf(fileID, "%f %f\n", real(Y(i)), imag(Y(i)));
+end
+fclose(fileID);
 
 % Compare accuracy of Radix-4 FFT to MATLAB's FFT
 errs = double(S) - Y;

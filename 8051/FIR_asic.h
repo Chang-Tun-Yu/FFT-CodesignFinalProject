@@ -1,10 +1,13 @@
 #ifndef	__ASIC_H
 #define __ASIC_H
+
+#define DEBUG 1
 #include "systemc.h"
 #include <stdio.h>
 #include <cmath>
 #include <complex>
 #include <bitset>
+#include <assert.h>
 
 #define BW 6
 
@@ -15,12 +18,15 @@ SC_MODULE(FIR_asic)
 	sc_in<sc_uint<8> >      A;  	// P0: input random A
 	sc_in<sc_uint<8> >      B;  	// P3: control signal to FIR
 	sc_out<sc_uint<8> >     C;  	// P2: has_reset
-	sc_out<sc_uint<8> >     D;  	// P1: 8051 forwards result to Port2
+	sc_out<sc_uint<8> >     D0;  	
+	sc_out<sc_uint<8> >     D1;  	
 	sc_signal<bool> rst;
+	sc_signal<bool> prev_valid;
 
 	SC_CTOR(FIR_asic)
 	{
 		rst = true;
+		prev_valid = false;
 		SC_CTHREAD(FIR_1, clk.neg());
 		// SC_CTHREAD(FIR_N, clk.neg());
 	}
@@ -32,7 +38,8 @@ SC_MODULE(FIR_asic)
 		if (rst)
 		{
 			C.write(0x00);
-			D.write(0x00);
+			D0.write(0x00);
+			D1.write(0x00);
 			rst = false;
 		}
 		
@@ -52,33 +59,78 @@ SC_MODULE(FIR_asic)
 		
 		sc_int<8> index = 0;
 		sc_int<8> write_index = 0;
+		sc_int<32> result_r;
+		sc_int<32> result_i;
 		bool load_finish = false;
 		bool cal_finish = false;
 
 		std::complex<double> a, b, c, d;
 		unsigned int segment;
 		bool discard = true;
-		
+		int out_cnt = 0;
+
 		C.write(0);
 		while (1) {
 			wait();
-			if (B.read() == 1) {
+			// std::cout << "[FFT]" << A << " " << B << " " << C << " "<< D << endl;
+			if (B.read() == 1 && !prev_valid) {
 				// discard the first 0
-				if (discard) {
-					discard = false;
-				}
-				else {
+				// if (discard) {
+				// 	discard = false;
+				// }
+				// else {
 					s_t[index++] = std::complex<double>(A.read(), 0);
-					std::cout << "s_t[" << index - 1 << "] = " << s_t[index - 1] << std::endl;
-					if (index >= LEN)
+					std::cout << "[LOAD] " <<"s_t[" << index - 1 << "] = " << s_t[index - 1] << std::endl;
+					#ifdef DEBUG
+					if (index - 1 <= 31)
+						assert(index-1 == s_t[index - 1].real());
+					else if (index -1 <= 47)
+						assert(index-1 == s_t[index - 1].real() - 16);
+					else 
+						assert(index-1 == s_t[index - 1].real() - 48);
+					#endif
+					if (index >= LEN) {
 						load_finish = true;
-				}
+					}			
+				// }
 			}
+			prev_valid = (B.read() == 1);
 				
 			if (cal_finish) {
-				std::cout << write_index << " " << S_f[write_index] << std::endl;
-				D.write(S_f[write_index++].real());
-				C.write(1);
+				if (out_cnt == 0) {
+					// std::cout << "[WRITE OUT]" << write_index << " " << S_f[write_index] << std::endl;
+					result_r = static_cast<sc_int<32> >(S_f[write_index].real()*(1 << 16));
+					// use .range(31, 24) to select
+					C.write(128+write_index);
+					D0.write(static_cast<sc_uint<8> >(result_r.range(31, 24)));
+					D1.write(static_cast<sc_uint<8> >(result_r.range(23, 16)));
+					out_cnt += 1;
+				}
+				else if (out_cnt == 1) {
+					C.write(128+write_index);
+					D0.write(static_cast<sc_uint<8> >(result_r.range(15, 8)));
+					D1.write(static_cast<sc_uint<8> >(result_r.range(7, 0)));
+					out_cnt += 1;
+				}
+				else if (out_cnt == 2) {
+					result_i = static_cast<sc_int<32> >(S_f[write_index].imag()*(1 << 16));
+					C.write(128+64+write_index);
+					D0.write(static_cast<sc_uint<8> >(result_i.range(31, 24)));
+					D1.write(static_cast<sc_uint<8> >(result_i.range(23, 16)));
+					out_cnt += 1;
+				}
+				else if (out_cnt == 3) {
+					C.write(128+64+write_index);
+					D0.write(static_cast<sc_uint<8> >(result_i.range(15, 8)));
+					D1.write(static_cast<sc_uint<8> >(result_i.range(7, 0)));
+					out_cnt = 0;
+					write_index += 1;
+				}
+				else { // == 8
+					C.write(0);
+					D0.write(0);
+					out_cnt = 0;
+				}
 				if (write_index >= LEN) {
 					load_finish = false;
 					cal_finish = false;
@@ -127,7 +179,7 @@ SC_MODULE(FIR_asic)
 					std::bitset<BW> n(k);
 					S_f[reverseBits(n)] = sTemp[k];
 				}
-				C.write(0);
+				C.write(1);
 				cal_finish = true;
 			}
 			else
@@ -152,7 +204,7 @@ SC_MODULE(FIR_asic)
 		if (rst)
 		{
 			C.write(0x00);
-			D.write(0x00);
+			D0.write(0x00);
 			rst = false;
 		}
 

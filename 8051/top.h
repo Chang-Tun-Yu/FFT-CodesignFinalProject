@@ -1,5 +1,6 @@
 #ifndef	__CORE_8051_H
 #define __CORE_8051_H
+
 #include <systemc.h>
 #include "core_8051.h"
 #include "sram.h"
@@ -10,7 +11,7 @@
 SC_MODULE(top)
 {
 sc_in_clk		clk;
-sc_in_clk       clk_800;
+sc_in_clk       clk_8051;
 sc_in<sc_uint<1> >	reset;
 sc_out<sc_uint<1> >	poff;
 sc_signal<sc_uint<1> > has_reset;
@@ -59,10 +60,11 @@ sc_signal<sc_uint<1> > has_reset;
 		asic1->A        ( port0o ); 
 		asic1->B        ( port3o );
 		asic1->C        ( port2i );
-		asic1->D        ( port1i );
+		asic1->D0        ( port0i );
+		asic1->D1        ( port1i );
 						
         asic2=new DATA_asic("DATA_asic");
-		asic2->clk      	( clk_800   	  );
+		asic2->clk      	( clk_8051   	  );
 		asic2->reset    	( reset  		  );
 		asic2->xram_data	( xrambig_rd_data ); 
 		asic2->ctrl        	( port3o 		  );
@@ -70,7 +72,7 @@ sc_signal<sc_uint<1> > has_reset;
 
 	    core=new core_8051("core");
 	    // core->clk	    ( clk	);
-		core->clk	    ( clk_800	);
+		core->clk	    ( clk_8051	);
 	    core->reset	    ( reset	);
 	    core->poff	    ( poff	);
 	    core->intreq    ( intreq	);
@@ -129,4 +131,5 @@ sc_signal<sc_uint<1> > has_reset;
 			<<xrambig_rd_data<<xrambig_ready<<clk;
 	}
 };
+
 #endif
