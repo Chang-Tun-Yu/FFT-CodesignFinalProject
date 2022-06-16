@@ -9,9 +9,13 @@
 //#include <conio.h>
 //#include <ncurses.h>
 #define clockcycle      10   //10ns=100MHz
-#define clockcycle_8051  4 //1.25ns=800MHz
+#define clockcycle_8051  4 //
 #include "top.h"
 
+namespace Configs {
+	const int mode = 0; // 1 for N cycle, 0 for one cycle
+	const bool debug = 0;
+}
 
 int sc_main(int argc, char *argv[])
 {
@@ -23,7 +27,7 @@ int sc_main(int argc, char *argv[])
 	std::vector<std::complex<double> > golden;
 	std::vector<std::complex<double> > asic_ans;
 	std::vector<std::complex<double> > errs;
-	int load_latency, output_latency;
+	int load_latency, output_latency, overall_latency;
 
 	if (argc<2) {
 	    printf("Usage:8051_iss filename imagename\n");
@@ -108,14 +112,14 @@ int sc_main(int argc, char *argv[])
 		reset.write(0);
 		top.core->save_vars(&olds);
 
-		for (; t < 1500; t++) {
+		for (; t < 3000; t++) {
 			int p0o = top.port0o.read();  //A 
 			int p0i = top.port0i.read();  //D0
 			int p1 = top.port1i.read();   //D1
 			int p2 = top.port2i.read();   //C 
 			int p3i = top.port3i.read();  
 			int p3o = top.port3o.read();  //B 
-			// if (t % 10 == 0 || t > 670) {
+			// if (t % 10 == 0 || t > 700) {
 			// 	printf("\n");
 			// 	printf("Time:%d, P0o=%d, P0i=%d, P1=%d, P2=%d, P3i=%d, P3o=%d\n\n", t * clockcycle, p0o, p0i, p1, p2, p3i, p3o);
 			// }
@@ -128,6 +132,7 @@ int sc_main(int argc, char *argv[])
 			if (p2 == 1) { // load finish
 				std::cout << "[Load finish]: Time Used = " << (t - load_start)*clockcycle << " ns"<< std::endl;
 				load_latency = (t - load_start)*clockcycle;
+				std::cout << "============================ Validation ============================" << std::endl;
 			}
 			if ((p2 / 128 == 1) && output_start == 0) {
 				output_start = t;
@@ -181,6 +186,7 @@ int sc_main(int argc, char *argv[])
 					if (out_index == 64) {
 						std::cout << "[Output finish]: Time Used = " << (t - output_start)*clockcycle << " ns"<< std::endl;
 						output_latency = (t - output_start)*clockcycle;
+						overall_latency = t*clockcycle;
 					}
 				}
 			}
@@ -199,13 +205,21 @@ int sc_main(int argc, char *argv[])
 		noise = noise / (double)64;
 		double SNR;
 		SNR = 10*log10(sig/noise);
-		int compute_latency = 10;
+		
+		int compute_latency;
+		if (Configs::mode) { // N-CYCLE
+			compute_latency = 540;
+		}
+		else {
+			compute_latency = 10;
+		}
 		std::cout <<  std::endl;
 		std::cout << "============================================================" << std::endl;
 		std::cout << "                === Simulation Result ===                   " << std::endl;
 		std::cout << "               Load Latency: " << std::setw(9) << load_latency << " (ns)"<< std::endl;
 		std::cout << "               Compute Latency: " << std::setw(6) << compute_latency << " (ns)"<<std::endl;
 		std::cout << "               Output Latency: " << std::setw(7) << output_latency << " (ns)"<<std::endl;
+		std::cout << "               Overall Latency: " << std::setw(6) << overall_latency << " (ns)"<<std::endl;
 		std::cout << "               SNR of 2 FFT:  " << std::setw(8) << SNR << " (db)" << std::endl;
 		std::cout << "============================================================" << std::endl;
 		std::cout <<  std::endl;
